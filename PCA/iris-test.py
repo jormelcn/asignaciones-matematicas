@@ -1,19 +1,4 @@
 import pandas as pd
-
-import plotly
-from plotly.graph_objs import Histogram
-from plotly.graph_objs.histogram import Marker
-from plotly.graph_objs.layout import XAxis
-from plotly.graph_objs.layout import YAxis
-from plotly.graph_objs import Data
-from plotly.graph_objs import Figure
-from plotly.graph_objs import Layout
-from plotly.graph_objs import Bar
-from plotly.graph_objs import Scatter
-from plotly.graph_objs import Scene
-from plotly.graph_objs import Line
-import plotly.plotly as py
-
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 
@@ -31,44 +16,6 @@ df.tail()
 
 X = df.ix[:,0:4].values
 y = df.ix[:,4].values
-
-# plotting histograms
-
-traces = []
-
-legend = {0:False, 1:False, 2:False, 3:True}
-
-colors = {
-  'Iris-setosa': 'rgb(31, 119, 180)', 
-  'Iris-versicolor': 'rgb(255, 127, 14)', 
-  'Iris-virginica': 'rgb(44, 160, 44)'
-}
-
-for col in range(4):
-  for key in colors:
-    traces.append(
-      Histogram(
-        x=X[y==key, col], 
-        opacity=0.75,
-        xaxis='x%s' %(col+1),
-        marker=Marker(color=colors[key]),
-        name=key,
-        showlegend=legend[col]
-      )
-    )
-
-layout = Layout(
-  barmode='overlay',
-  xaxis=XAxis(domain=[0, 0.25], title='sepal length (cm)'),
-  xaxis2=XAxis(domain=[0.3, 0.5], title='sepal width (cm)'),
-  xaxis3=XAxis(domain=[0.55, 0.75], title='petal length (cm)'),
-  xaxis4=XAxis(domain=[0.8, 1], title='petal width (cm)'),
-  yaxis=YAxis(title='count'),
-  title='Distribution of the different Iris flower features'
-)
-
-fig = Figure(data=traces, layout=layout)
-py.plot(fig)
 
 #standardicing Data
 X_std = StandardScaler().fit_transform(X)
@@ -89,63 +36,34 @@ eig_pairs = [(np.abs(eig_vals[i]), eig_vecs[:,i]) for i in range(len(eig_vals))]
 eig_pairs.sort()
 eig_pairs.reverse()
 
-# Visually confirm that the list is correctly sorted by decreasing eigenvalues
-print('\nEigenvalues in descending order:')
-for i in eig_pairs:
-    print(i[0])
+#SVD
+u,s,v = np.linalg.svd(X_std.T)
+print('\nSVD U:')
+print(u)
 
+# Visually confirm that the list is correctly sorted by decreasing eigenvalues
+print('\nEigenpairs in descending order:')
+for i in eig_pairs:
+    print(i)
+
+#Cumulative Varianza
 tot = sum(eig_vals)
 var_exp = [(i / tot)*100 for i in sorted(eig_vals, reverse=True)]
 cum_var_exp = np.cumsum(var_exp)
-
-trace1 = Bar(
-        x=['PC %s' %i for i in range(1,5)],
-        y=var_exp,
-        showlegend=False)
-
-trace2 = Scatter(
-        x=['PC %s' %i for i in range(1,5)], 
-        y=cum_var_exp,
-        name='cumulative explained variance')
-
-data = [trace1, trace2]
-
-layout=Layout(
-        yaxis=YAxis(title='Explained variance in percent'),
-        title='Explained variance by different principal components')
-
-fig = Figure(data=data, layout=layout)
-py.plot(fig)
+print('\nCumulative Variance in Percent:')
+print(cum_var_exp)
 
 
+#Reducing the 4-dimensional feature space to a 2-dimensional feature subspace, 
+#by choosing the "top 2" eigenvectors with the highest eigenvalues to construct our 
+#d×k-dimensional eigenvector matrix W
 matrix_w = np.hstack((eig_pairs[0][1].reshape(4,1), 
                       eig_pairs[1][1].reshape(4,1)))
 
-print('Matrix W:\n', matrix_w)
+print('\nMatrix W:\n', matrix_w)
 
-
+#Projection Onto the New Feature Space
 Y = X_std.dot(matrix_w)
-traces = []
-
-for name in ('Iris-setosa', 'Iris-versicolor', 'Iris-virginica'):
-    trace = Scatter(
-        x=Y[y==name,0],
-        y=Y[y==name,1],
-        mode='markers',
-        name=name,
-        marker=Marker(
-            size=12,
-            line=Line(
-                color='rgba(217, 217, 217, 0.14)',
-                width=0.5),
-            opacity=0.8))
-    traces.append(trace)
-
-
-data = Data(traces)
-layout = Layout(showlegend=True,
-                scene=Scene(xaxis=XAxis(title='PC1'),
-                yaxis=YAxis(title='PC2'),))
-
-fig = Figure(data=data, layout=layout)
-py.plot(fig)
+print('\nOriginal Space Shape:', X.shape)
+print('New Subspace Shape:', Y.shape)
+print('\n')
