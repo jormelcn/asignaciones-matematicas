@@ -1,0 +1,13 @@
+Implementar la regresión rígida utilizando: 
+
+i) La ecuación directa
+
+ii) Gradiente descendiente
+
+Para esto se deberán definir dos funciones:
+ 
+def ridge(X,y,d2) (como se explica en el documento guía)
+
+def ridge_grad(X,y,d2,lambda) donde lambda es la tasa de aprendizaje
+
+
