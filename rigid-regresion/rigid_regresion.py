@@ -38,7 +38,7 @@ def calcError(
     return np.sum(difference*difference, axis=0)
 
 def basicCost(difference) :
-    return difference.dot(difference.T)/(2 * difference.shape[1])
+    return np.sum(difference*difference)/(2 * difference.shape[1])
 
 def basicCostDerivate(difference, dataIn) :
     return difference.T.dot(dataIn).T/difference.shape[1]
@@ -55,18 +55,26 @@ def costDerivate(delta2, params, difference, dataIn) :
 def gradientDescent(delta2, alpha, params, diference, dataIn) :
     return params - alpha * costDerivate(delta2, params, diference, dataIn)
 
-def ridge(train, test, delta2, alpha, params = None, n = 1000, trainErrorHistory = False, testErrorHistory = False) :
+def ridge(train, delta2, alpha, params = None, n = 1000, test = None, trainErrorHistory = False, testErrorHistory = False) :
     dataIn, dataOut = train
-    testIn, testOut = test
-    if params == None : params = np.zeros([dataIn.shape[0], dataOut.shape[0]]) 
+    if params == None : params = np.zeros([dataIn.shape[1], dataOut.shape[1]]) 
     verifyShapes(params, dataIn, dataOut)
-    verifyShapes(params, testIn, testOut)
+    
+    if test != None and testErrorHistory:
+        testIn, testOut = test
+        verifyShapes(params, testIn, testOut)
+        testErrorHistory = []
+    else:
+        testErrorHistory = False
+  
+    if trainErrorHistory :
+            trainErrorHistory = []
+
     dataInStd, dataInMean, dataInVar = standarice(dataIn)
     dataOutStd, dataOutMean, dataOutVar = standarice(dataOut)
     diference = calcDifference(params, dataInStd, dataOutStd)
     costHistory = []
-    trainErrorHistory = []
-    testErrorHistory = []
+      
     for _ in range(n) :
         params = gradientDescent(delta2, alpha, params, diference, dataIn)
         diference = calcDifference(params, dataInStd, dataOutStd)
@@ -78,12 +86,16 @@ def ridge(train, test, delta2, alpha, params = None, n = 1000, trainErrorHistory
                 dataInMean, dataInVar,
                 dataOutMean, dataOutVar
             )
-            trainErrorHistory.append(trainError)
+            trainErrorHistory.append(trainError) 
         if testErrorHistory :
             testError = calcError(
                 params, testIn, testOut, 
                 dataInMean, dataInVar, 
                 dataOutMean, dataOutVar)
             testErrorHistory.append(testError)
-    return (params, costHistory, trainErrorHistory, testErrorHistory)
+    return (
+        params, 
+        np.array(costHistory), 
+        np.array(trainErrorHistory), 
+        np.array(testErrorHistory))
         
