@@ -1,3 +1,6 @@
+#*********************** Asignacion Matematicas *****************************
+# Modulo con funciones para regresion lineal rigida
+#
 import numpy as np
 
 def verifyShapes(params, dataIn, dataOut):
@@ -20,82 +23,59 @@ def verifyShapes(params, dataIn, dataOut):
     else :
         raise ValueError('params invalid dimensions')
 
-def standarice(data) :
-    mean = np.mean(data, axis=0)
-    variance = np.std(data, axis=0)
-    dataStd = (data - mean)/variance
-    return (dataStd, mean, variance)
+# return (Dstd, mean(D), std(D))
+def standardize(D) :
+    mean = np.mean(D, axis=0)
+    std = np.std(D, axis=0)
+    Dstd = (D - mean)/std
+    return (Dstd, mean, std)
 
-def calcDifference(params, dataIn, dataOut) :
-    return dataIn.dot(params) - dataOut
+# d = (Dstd, mean(D), std(D))
+# return D
+def revertStandardize(d) : 
+    D = d[0] * d[2] + d[1]
+    return (D, d[1], d[2])
 
-def calcError(
-    params, testIn, testOut, 
-    dataInMean, dataInVar, 
-    dataOutMean, dataOutVar) :
-    prediction = ((testIn - dataInMean)/dataInVar).dot(params)*dataOutVar + dataOutMean
-    difference = prediction - testOut
-    return np.sum(difference*difference, axis=0)
+#Medium Relative Cuadratic Error
+#return e
+def error(Yp, Y):
+    err_abs = Yp - Y
+    return np.sum(err_abs * err_abs)/np.sum(Y * Y)
 
-def basicCost(difference) :
-    return np.sum(difference*difference)/(2 * difference.shape[1])
+# s = (mean(X), std(X), mean(Y), std(Y))
+# return Ystd
+def predict(tetha, X, s):
+    Xstd = (X - s[0])/s[1]
+    return Xstd.dot(tetha) * s[3] + s[2]
 
-def basicCostDerivate(difference, dataIn) :
-    return difference.T.dot(dataIn).T/difference.shape[1]
+# diff = X.dot(tetha) - Y
+def cost(tetha, diff, delta2) :
+    return np.sum(diff * diff) + delta2*np.sum(tetha * tetha)
 
-def basicGradientDescent(alpha, params,difference, dataIn) :
-    return params - alpha * basicCostDerivate(difference, dataIn)
+# diff = X.dot(tetha) - Y
+def costDerivate(tetha, diff, delta2, X) :
+    return 2 * (diff.T.dot(X) + delta2 * tetha.T).T
 
-def cost(delta2, params, difference) :
-    return basicCost(difference) + delta2*np.sum(params*params)
+def direct(X, Y, delta2) :
+    return np.linalg.inv(X.T.dot(X) + delta2 * np.identity(X.shape[1])).dot(X.T).dot(Y)
 
-def costDerivate(delta2, params, difference, dataIn) :
-    return 2*(difference.T.dot(dataIn) + delta2*params.T).T
-
-def gradientDescent(delta2, alpha, params, diference, dataIn) :
-    return params - alpha * costDerivate(delta2, params, diference, dataIn)
-
-def ridge(train, delta2, alpha, params = None, n = 1000, test = None, trainErrorHistory = False, testErrorHistory = False) :
-    dataIn, dataOut = train
-    if params == None : params = np.zeros([dataIn.shape[1], dataOut.shape[1]]) 
-    verifyShapes(params, dataIn, dataOut)
-    
-    if test != None and testErrorHistory:
-        testIn, testOut = test
-        verifyShapes(params, testIn, testOut)
-        testErrorHistory = []
-    else:
-        testErrorHistory = False
-  
-    if trainErrorHistory :
-            trainErrorHistory = []
-
-    dataInStd, dataInMean, dataInVar = standarice(dataIn)
-    dataOutStd, dataOutMean, dataOutVar = standarice(dataOut)
-    diference = calcDifference(params, dataInStd, dataOutStd)
-    costHistory = []
-      
-    for _ in range(n) :
-        params = gradientDescent(delta2, alpha, params, diference, dataIn)
-        diference = calcDifference(params, dataInStd, dataOutStd)
-        currentCost = cost(delta2, params, diference)
-        costHistory.append(currentCost)
-        if trainErrorHistory :
-            trainError = calcError(
-                params, dataIn, dataOut,
-                dataInMean, dataInVar,
-                dataOutMean, dataOutVar
-            )
-            trainErrorHistory.append(trainError) 
-        if testErrorHistory :
-            testError = calcError(
-                params, testIn, testOut, 
-                dataInMean, dataInVar, 
-                dataOutMean, dataOutVar)
-            testErrorHistory.append(testError)
-    return (
-        params, 
-        np.array(costHistory), 
-        np.array(trainErrorHistory), 
-        np.array(testErrorHistory))
+#return (tetha, success, n, costHistory)
+def gradient(
+    X, Y, delta2, alpha, tetha = None, 
+    n_max = 10000, 
+    min_relative_decrement = 1) :
+    if tetha == None : tetha = np.zeros([X.shape[1], Y.shape[1]])
+    costs = np.zeros(n_max)
+    success = False
+    for i in range(n_max) :
+        diff = X.dot(tetha) - Y
+        costs[i] = cost(tetha, diff, delta2)
+        if i > 0 : 
+            ri = (costs[i] - costs[i - 1])/(alpha*costs[i - 1])
+            if ri > 0: break
+            if ri <= 0 and ri > - min_relative_decrement :
+                success = True
+                break
+        tetha = tetha - alpha * costDerivate(tetha, diff, delta2, X)
+    return (tetha, success, i, costs[0:i])
         
