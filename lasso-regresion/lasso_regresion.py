@@ -52,23 +52,28 @@ def predict(tetha, X, s):
 def cost(tetha, diff, delta2) :
     return np.sum(diff * diff) + delta2*np.sum(np.abs(tetha))
 
+def rigid(X, Y, delta2) :
+    return np.linalg.inv(X.T.dot(X) + delta2 * np.identity(X.shape[1])).dot(X.T).dot(Y)
+
 def iterar(tetha, X, Y, delta2):
     mask = np.ones(X.shape[1], dtype='bool')
     for j in range(X.shape[1]):
         mask[j] = False
-        a = 2*np.sum(X[:,j]**2)*tetha[j,:]
+        a = 2*np.sum(X[:,j]**2)
         c = 2*np.sum((Y - X[:,mask].dot(tetha[mask,:]))*X[:,j:j+1], axis=0)
         mask[j] = True
         tetha[j,:] = ((c < -delta2)*(c + delta2) + (c > delta2)*(c - delta2))/a
     return tetha
 
-def regresion(X, Y, delta2, tetha = None, n_max=10000, t = 0.00001):
-    if tetha == None : tetha = np.random.random((X.shape[1], Y.shape[1]))
+def regression(X, Y, delta2, tetha = None, n_max=10000, t = 0.000001):
+    if tetha == None : tetha = rigid(X, Y, delta2)
     success = False
+    costs = np.zeros(n_max)
     for n in range(n_max):
         tetha_n = iterar(np.copy(tetha), X, Y, delta2)
+        costs[n] = cost(tetha_n, X.dot(tetha) - Y, delta2)        
         if np.sum(np.abs(tetha - tetha_n)) < t:
             success = True
             break
         tetha = tetha_n
-    return (tetha, success, n)
+    return (tetha_n, success, n, costs[0:n])
